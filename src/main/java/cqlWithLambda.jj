@@ -1,0 +1,106 @@
+PARSER_BEGIN(CQLParser)
+import model.SensorData;
+
+import java.io.Reader;
+import java.io.StringReader;
+import java.util.stream.Stream;
+
+public class CQLParser {
+	private Stream<SensorData> inputDataStream;
+	private Stream<SensorData> outputStream;
+	
+    public CQLParser(String query, Stream<SensorData> inputDataStream){
+        this((Reader)(new StringReader(query)));
+		this.inputDataStream = inputDataStream;
+		
+    }
+}
+PARSER_END(CQLParser)
+SKIP :
+{
+        " "
+        | "\t"
+        | "\r"
+        | "\n"
+}
+TOKEN: /*RESERVED TOKENS FOR UQL */
+{
+           <SELECT: "SELECT" | "select">
+        |  <STAR:  "*">
+        |  <FROM: "FROM" | "from">
+        |  <WHERE: "WHERE" | "where">
+		|  <AND: "AND" | "and">
+		|  <OR: "OR" | "or">
+        |  <AVG: "AVG" | "avg">
+        |  <SUM: "SUM" | "sum">
+        |  <LPAREN: "(">
+        |  <RPAREN: ")">
+        |  <EQUALS: "=">
+        |  <COMMA: ",">
+        |  <LOWER: "<">
+		|  <GRATER: ">">
+		|  <LESSEREQUAL: "<=">
+		|  <GRATEREQUAL: ">=">
+		|  <WINDOW: "[RANGE " (["0"-"9"])+"]">
+		|  <NUMBER: (["0"-"9"])+>
+        |  <STRING: (["A"-"Z", "a"-"z", "0"-"9"])+ >
+		|  <STRINGCOMMA: (["A"-"Z", "a"-"z", "0"-"9"])+"," >
+        |  <QUOTED_STRING: "\"" (~["\""])+ "\"" >
+}
+
+Stream<SensorData> parse() :
+{
+}
+{            
+	selection() fromWhere() (withCondition())? <EOF>
+	{ return outputStream; }
+}
+
+void selection() :
+{
+}
+{
+    <SELECT> attr()
+}
+
+void attr() :
+{
+	Token comparand;
+	String tokenValue;
+}
+{
+    (
+	aggregation() | <STAR> | comparand=<STRING> 
+		{
+			tokenValue = comparand.toString();
+			outputStream = inputDataStream.filter(g -> g.getName().equals(tokenValue));
+		}
+	)?
+    (LOOKAHEAD(2) <COMMA> attr())*
+}
+
+
+void aggregation() :
+{
+}
+{
+	(<AVG> | <SUM>) <LPAREN> <STRING> <RPAREN>
+}
+void fromWhere() :
+{
+}
+{
+	<FROM> <STRING> (<WINDOW>)?
+}
+void withCondition() :
+{
+}
+{
+	<WHERE> condition() ((<OR> | <AND>) condition())*
+}
+void condition() :
+{
+}
+{
+	<STRING> (<EQUALS> | <LOWER> | <GRATER> | <LESSEREQUAL> | <GRATEREQUAL>) <NUMBER>
+}

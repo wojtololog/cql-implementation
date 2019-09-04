@@ -28,4 +28,8 @@ public class SensorData {
     public String toString() {
         return "timestamp: " + timestamp + " " + name + ", temperature: " + temperature;
     }
+
+    public boolean filterWithName(String name) {
+        return this.getName().equals(name);
+    }
 }
