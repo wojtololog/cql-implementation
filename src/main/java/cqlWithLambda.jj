@@ -4,15 +4,19 @@ import model.SensorData;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
 
 public class CQLParser {
-	private Stream<SensorData> inputDataStream;
+	private Supplier<Stream<SensorData>> inputDataStream;
 	private Stream<SensorData> outputStream;
+	private List<Stream<SensorData>> streamSelectionList;
 	
-    public CQLParser(String query, Stream<SensorData> inputDataStream){
+    public CQLParser(String query, Supplier<Stream<SensorData>> sensorDataStreamSupplier){
         this((Reader)(new StringReader(query)));
-		this.inputDataStream = inputDataStream;
-		
+		this.inputDataStream = sensorDataStreamSupplier;
+		streamSelectionList = new ArrayList<>();
     }
 }
 PARSER_END(CQLParser)
@@ -44,16 +48,15 @@ TOKEN: /*RESERVED TOKENS FOR UQL */
 		|  <WINDOW: "[RANGE " (["0"-"9"])+"]">
 		|  <NUMBER: (["0"-"9"])+>
         |  <STRING: (["A"-"Z", "a"-"z", "0"-"9"])+ >
-		|  <STRINGCOMMA: (["A"-"Z", "a"-"z", "0"-"9"])+"," >
         |  <QUOTED_STRING: "\"" (~["\""])+ "\"" >
 }
 
-Stream<SensorData> parse() :
+List<Stream<SensorData>> parse() :
 {
 }
 {            
 	selection() fromWhere() (withCondition())? <EOF>
-	{ return outputStream; }
+	{ return streamSelectionList; }
 }
 
 void selection() :
@@ -73,10 +76,11 @@ void attr() :
 	aggregation() | <STAR> | comparand=<STRING> 
 		{
 			tokenValue = comparand.toString();
-			outputStream = inputDataStream.filter(g -> g.getName().equals(tokenValue));
+			outputStream = inputDataStream.get().filter(g -> g.getName().equals(tokenValue));
+			streamSelectionList.add(outputStream);
 		}
 	)?
-    (LOOKAHEAD(2) <COMMA> attr())*
+    (<COMMA> attr())*
 }
 
 

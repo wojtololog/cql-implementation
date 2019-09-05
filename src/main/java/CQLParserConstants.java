@@ -47,9 +47,7 @@ public interface CQLParserConstants {
   /** RegularExpression Id. */
   int STRING = 23;
   /** RegularExpression Id. */
-  int STRINGCOMMA = 24;
-  /** RegularExpression Id. */
-  int QUOTED_STRING = 25;
+  int QUOTED_STRING = 24;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -80,7 +78,6 @@ public interface CQLParserConstants {
     "<WINDOW>",
     "<NUMBER>",
     "<STRING>",
-    "<STRINGCOMMA>",
     "<QUOTED_STRING>",
   };
 

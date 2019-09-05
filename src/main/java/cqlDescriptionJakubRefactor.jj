@@ -56,7 +56,11 @@ Stream<SensorData> parse() :
 }
 {            
 	selection() fromWhere() (withCondition())? <EOF>
-	{ return this.outputStream; }
+	{
+		int a = 5;
+		String throwBack = "throwback";
+		return this.outputStream; 
+	}
 }
 
 void selection() :
