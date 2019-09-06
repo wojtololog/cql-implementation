@@ -10,14 +10,14 @@ import java.util.function.Supplier;
 
 public class CQLParser {
 	private Stream<SensorData> inputDataStream;
-	private Stream<SensorData> outputStream;
-	
 	private List<Token> tokenList;
+	private List<Token> firstConditionTokenList;
 	
     public CQLParser(String query, Stream<SensorData> sensorDataStream){
         this((Reader)(new StringReader(query)));
 		this.inputDataStream = sensorDataStream;
 		tokenList = new ArrayList<>();
+		firstConditionTokenList = new ArrayList<>();
     }
 	
 	private long fromWindowTokenToLong(Token windowToken) {
@@ -36,14 +36,34 @@ public class CQLParser {
 					tokenValues[i] = tokenList.get(i).image;
 				}
 				return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]) || g.getName().equals(tokenValues[1]))
-									.filter(g -> g.getTimestamp()  <= windowSize);
+									.filter(g -> g.getTimestamp() <= windowSize);
 			}
 			else if(tokenList.size() == 1) {
 				tokenValues[0] = tokenList.get(0).image;
 				return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]))
-									.filter(g -> g.getTimestamp()  <= windowSize);
+									.filter(g -> g.getTimestamp() <= windowSize);
 			}
 		return inputDataStream;	
+	}
+	
+	private Stream<SensorData> conditionRules(List<Token> firstConditionTokenList, Stream<SensorData> selectionStream) {
+		String filteringCondition = firstConditionTokenList.get(0).image;
+		String numberString = firstConditionTokenList.get(1).image;
+        double filteringNumber = Double.valueOf(numberString);
+		
+		switch(filteringCondition) {
+		case ">":
+			return selectionStream.filter(g -> g.getTemperature() > filteringNumber);
+		case "<":	
+			return selectionStream.filter(g -> g.getTemperature() < filteringNumber);
+		case "<=":	
+			return selectionStream.filter(g -> g.getTemperature() <= filteringNumber);
+		case ">=":	
+			return selectionStream.filter(g -> g.getTemperature() >= filteringNumber);	
+		default:
+			return null;
+		}
+		
 	}
 }
 PARSER_END(CQLParser)
@@ -80,11 +100,19 @@ TOKEN: /*RESERVED TOKENS FOR UQL */
 
 Stream<SensorData> parse() :
 {
-Stream<SensorData> selectionStream;
+	Stream<SensorData> selectionStream;
+	Stream<SensorData> outputStream = null;
 }
 {            
-	selectionStream = selection() fromWhere() (withCondition())? <EOF>
-	{ return selectionStream; }
+	selectionStream = selection() fromWhere() (outputStream = withCondition(selectionStream))? <EOF>
+	{ 
+		if(outputStream == null) {
+			return selectionStream;
+		} else {
+			return outputStream; 
+		}
+		return null;
+	}
 }
 
 Stream<SensorData> selection() :
@@ -124,15 +152,23 @@ void fromWhere() :
 {
 	<FROM> <STRING>
 }
-void withCondition() :
+Stream<SensorData> withCondition(Stream<SensorData> selectionStream) :
 {
+	Stream<SensorData> conditionStream;
 }
 {
-	<WHERE> condition() ((<OR> | <AND>) condition())*
+	<WHERE> {firstConditionTokenList = condition();}
+	{ 
+	  conditionStream = conditionRules(firstConditionTokenList, selectionStream);
+	  return conditionStream;
+	}
 }
-void condition() :
+List<Token> condition() :
 {
+	Token token;
+	List<Token> conditionTokens = new ArrayList<>();
 }
 {
-	<STRING> (<EQUALS> | <LOWER> | <GRATER> | <LESSEREQUAL> | <GRATEREQUAL>) <NUMBER>
+	<STRING> (token=<LOWER> {conditionTokens.add(token);} | token=<GRATER> {conditionTokens.add(token);} | token=<LESSEREQUAL> {conditionTokens.add(token);} | token=<GRATEREQUAL> {conditionTokens.add(token);}) token=<NUMBER> {conditionTokens.add(token);}
+	{ return conditionTokens; }
 }

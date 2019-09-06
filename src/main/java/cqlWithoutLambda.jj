@@ -10,13 +10,13 @@ import java.util.function.Supplier;
 
 public class CQLParser {
 	private Stream<SensorData> inputDataStream;
-	private Stream<SensorData> outputStream;
-	
 	private List<Token> tokenList;
+	private List<Token> firstConditionTokenList;
 	
     public CQLParser(String query, Stream<SensorData> sensorDataStream){
         this((Reader)(new StringReader(query)));
 		this.inputDataStream = sensorDataStream;
+		
 		
     }
 	
@@ -42,6 +42,25 @@ public class CQLParser {
 				
 			}
 		return inputDataStream;	
+	}
+	
+	private Stream<SensorData> conditionRules(List<Token> firstConditionTokenList, Stream<SensorData> selectionStream) {
+		String filteringCondition = firstConditionTokenList.get(0).image;
+		String numberString = firstConditionTokenList.get(1).image;
+        double filteringNumber = Double.valueOf(numberString);
+		
+		switch(filteringCondition) {
+		case ">":
+			
+		case "<":	
+			
+		case "<=":	
+			
+		case ">=":	
+			
+		default:
+			return null;
+		}
 	}
 }
 PARSER_END(CQLParser)
@@ -78,11 +97,19 @@ TOKEN: /*RESERVED TOKENS FOR UQL */
 
 Stream<SensorData> parse() :
 {
-Stream<SensorData> selectionStream;
+	Stream<SensorData> selectionStream;
+	Stream<SensorData> outputStream = null;
 }
 {            
-	selectionStream = selection() fromWhere() (withCondition())? <EOF>
-	{ return selectionStream; }
+	selectionStream = selection() fromWhere() (outputStream = withCondition(selectionStream))? <EOF>
+	{ 
+		if(outputStream == null) {
+			return selectionStream;
+		} else {
+			return outputStream; 
+		}
+		return null;
+	}
 }
 
 Stream<SensorData> selection() :
@@ -122,15 +149,23 @@ void fromWhere() :
 {
 	<FROM> <STRING>
 }
-void withCondition() :
+Stream<SensorData> withCondition(Stream<SensorData> selectionStream) :
 {
+	Stream<SensorData> conditionStream;
 }
 {
-	<WHERE> condition() ((<OR> | <AND>) condition())*
+	<WHERE> {firstConditionTokenList = condition();}
+	{ 
+	  conditionStream = conditionRules(firstConditionTokenList, selectionStream);
+	  return conditionStream;
+	}
 }
-void condition() :
+List<Token> condition() :
 {
+	Token token;
+	List<Token> conditionTokens;
 }
 {
-	<STRING> (<EQUALS> | <LOWER> | <GRATER> | <LESSEREQUAL> | <GRATEREQUAL>) <NUMBER>
+	<STRING> (token=<LOWER> {conditionTokens.add(token);} | token=<GRATER> {conditionTokens.add(token);} | token=<LESSEREQUAL> {conditionTokens.add(token);} | token=<GRATEREQUAL> {conditionTokens.add(token);}) token=<NUMBER> {conditionTokens.add(token);}
+	{ return conditionTokens; }
 }

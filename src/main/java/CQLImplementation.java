@@ -11,7 +11,7 @@ public class CQLImplementation {
             SensorDataGenerator sensorDataGenerator = new SensorDataGenerator(3, 12, 28);
             Stream<SensorData> sensorDataStream = Stream.generate(sensorDataGenerator::generate);
 
-            String query = "select [RANGE 150] sensor1, sensor2 from sensorDataStream";
+            String query = "select [RANGE 150] sensor1, sensor2 from sensorDataStream where temperature > 25";
             CQLParser cqlParser = new CQLParser(query, sensorDataStream);
 
             Stream<SensorData> result = cqlParser.parse();
