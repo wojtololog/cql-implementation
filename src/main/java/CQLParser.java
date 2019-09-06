@@ -12,6 +12,7 @@ public class CQLParser implements CQLParserConstants {
         private Stream<SensorData> inputDataStream;
         private List<Token> tokenList;
         private List<Token> firstConditionTokenList;
+        private boolean isTokenStarOnList;
 
     public CQLParser(String query, Stream<SensorData> sensorDataStream){
         this((Reader)(new StringReader(query)));
@@ -23,7 +24,7 @@ public class CQLParser implements CQLParserConstants {
         private long fromWindowTokenToLong(Token windowToken) {
                 String windowTokenValue = windowToken.image;
                 String[] splittedTable = windowTokenValue.split(" ");
-        String numberToSubstring = splittedTable[1];
+                String numberToSubstring = splittedTable[1];
                 String number = numberToSubstring.substring(0, numberToSubstring.length() - 1);
                 return Long.parseLong(number);
         }
@@ -31,19 +32,23 @@ public class CQLParser implements CQLParserConstants {
         private Stream<SensorData> selectionRules(Token windowToken) {
                 long windowSize = fromWindowTokenToLong(windowToken);
                 String[] tokenValues = new String[3];
+                if(!isTokenStarOnList) {
                         if(tokenList.size() == 2) {
                                 for(int i = 0; i < tokenList.size(); i++) {
                                         tokenValues[i] = tokenList.get(i).image;
                                 }
-                          return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]) || g.getName().equals(tokenValues[1]))
-                                  .filter(g -> g.getTimestamp() <= windowSize);
+                            return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]) || g.getName().equals(tokenValues[1]))
+                                    .filter(g -> g.getTimestamp() <= windowSize);
                         }
                         else if(tokenList.size() == 1) {
                                 tokenValues[0] = tokenList.get(0).image;
-                          return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]))
-                                  .filter(g -> g.getTimestamp() <= windowSize);
+                            return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]))
+                                    .filter(g -> g.getTimestamp() <= windowSize);
                         }
-                return inputDataStream;
+                } else {
+                    return inputDataStream.filter(g -> g.getTimestamp() <= windowSize);
+                }
+                return null;
         }
 
         private Stream<SensorData> conditionRules(List<Token> firstConditionTokenList, Stream<SensorData> selectionStream) {
@@ -53,16 +58,17 @@ public class CQLParser implements CQLParserConstants {
 
                 switch(filteringCondition) {
                 case ">":
-                  return selectionStream.filter(g -> g.getTemperature() > filteringNumber);
+                    return selectionStream.filter(g -> g.getTemperature() > filteringNumber);
                 case "<":
-                  return selectionStream.filter(g -> g.getTemperature() < filteringNumber);
+                    return selectionStream.filter(g -> g.getTemperature() < filteringNumber);
                 case "<=":
-                  return selectionStream.filter(g -> g.getTemperature() <= filteringNumber);
+                    return selectionStream.filter(g -> g.getTemperature() <= filteringNumber);
                 case ">=":
-                  return selectionStream.filter(g -> g.getTemperature() >= filteringNumber);
+                    return selectionStream.filter(g -> g.getTemperature() >= filteringNumber);
                 default:
                         return null;
                 }
+
         }
 
   final public Stream<SensorData> parse() throws ParseException {
@@ -124,11 +130,12 @@ public class CQLParser implements CQLParserConstants {
           aggregation();
           break;
         case STAR:
-          jj_consume_token(STAR);
+          token = jj_consume_token(STAR);
+                                       isTokenStarOnList = true;
           break;
         case STRING:
           token = jj_consume_token(STRING);
-                        tokenList.add(token);
+                                                                                      tokenList.add(token);
           break;
         default:
           jj_la1[1] = jj_gen;

@@ -12,11 +12,11 @@ public class CQLParser {
 	private Stream<SensorData> inputDataStream;
 	private List<Token> tokenList;
 	private List<Token> firstConditionTokenList;
+	private	boolean isTokenStarOnList;
 	
     public CQLParser(String query, Stream<SensorData> sensorDataStream){
         this((Reader)(new StringReader(query)));
 		this.inputDataStream = sensorDataStream;
-		
 		
     }
 	
@@ -31,6 +31,7 @@ public class CQLParser {
 	private Stream<SensorData> selectionRules(Token windowToken) {
 		long windowSize = fromWindowTokenToLong(windowToken);
 		String[] tokenValues = new String[3];
+		if(!isTokenStarOnList) {
 			if(tokenList.size() == 2) {
 				for(int i = 0; i < tokenList.size(); i++) {
 					tokenValues[i] = tokenList.get(i).image;
@@ -41,7 +42,10 @@ public class CQLParser {
 				tokenValues[0] = tokenList.get(0).image;
 				
 			}
-		return inputDataStream;	
+		} else {	
+			
+		}
+		return null;
 	}
 	
 	private Stream<SensorData> conditionRules(List<Token> firstConditionTokenList, Stream<SensorData> selectionStream) {
@@ -57,10 +61,11 @@ public class CQLParser {
 		case "<=":	
 			
 		case ">=":	
-			
+				
 		default:
 			return null;
 		}
+		
 	}
 }
 PARSER_END(CQLParser)
@@ -128,10 +133,7 @@ void attr() :
 }
 {
     (
-	aggregation() | <STAR> | token=<STRING> 
-		{
-			tokenList.add(token);
-		}
+	aggregation() | token=<STAR> { isTokenStarOnList = true; } | token=<STRING> { tokenList.add(token); }	
 	)?
     (<COMMA> attr())*
 }

@@ -12,6 +12,7 @@ public class CQLParser {
 	private Stream<SensorData> inputDataStream;
 	private List<Token> tokenList;
 	private List<Token> firstConditionTokenList;
+	private	boolean isTokenStarOnList;
 	
     public CQLParser(String query, Stream<SensorData> sensorDataStream){
         this((Reader)(new StringReader(query)));
@@ -28,9 +29,10 @@ public class CQLParser {
 		return Long.parseLong(number);
 	}
 	
-	private Stream<SensorData> selectionRules(Token windowToken) {
+	private Stream<SensorData> selectionRules(Token windowToken, boolean isTokenStarOnList) {
 		long windowSize = fromWindowTokenToLong(windowToken);
 		String[] tokenValues = new String[3];
+		if(!isTokenStarOnList) {
 			if(tokenList.size() == 2) {
 				for(int i = 0; i < tokenList.size(); i++) {
 					tokenValues[i] = tokenList.get(i).image;
@@ -43,7 +45,10 @@ public class CQLParser {
 				return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]))
 									.filter(g -> g.getTimestamp() <= windowSize);
 			}
-		return inputDataStream;	
+		} else {	
+			return inputDataStream.filter(g -> g.getTimestamp() <= windowSize);
+		}
+		return null;
 	}
 	
 	private Stream<SensorData> conditionRules(List<Token> firstConditionTokenList, Stream<SensorData> selectionStream) {
@@ -119,9 +124,10 @@ Stream<SensorData> selection() :
 {
 	Stream<SensorData> selectionStream;
 	Token windowToken;
+	boolean isTokenStarOnList;
 }
 {
-    <SELECT> windowToken=<WINDOW> attr() { selectionStream = selectionRules(windowToken); }
+    <SELECT> windowToken=<WINDOW> attr() { selectionStream = selectionRules(windowToken, isTokenStarOnList); }
 	{ return selectionStream; }
 }
 
@@ -131,10 +137,7 @@ void attr() :
 }
 {
     (
-	aggregation() | <STAR> | token=<STRING> 
-		{
-			tokenList.add(token);
-		}
+	aggregation() | token=<STAR> { isTokenStarOnList = true; } | token=<STRING> { tokenList.add(token); }		
 	)?
     (<COMMA> attr())*
 }
