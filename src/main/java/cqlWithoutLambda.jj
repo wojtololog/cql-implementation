@@ -20,16 +20,25 @@ public class CQLParser {
 		
     }
 	
-	private Stream<SensorData> selectionRules() {
+	private long fromWindowTokenToLong(Token windowToken) {
+		String windowTokenValue = windowToken.image;
+		String[] splittedTable = windowTokenValue.split(" ");
+        String numberToSubstring = splittedTable[1];
+		String number = numberToSubstring.substring(0, numberToSubstring.length() - 1);
+		return Long.parseLong(number);
+	}
+	
+	private Stream<SensorData> selectionRules(Token windowToken) {
+		long windowSize = fromWindowTokenToLong(windowToken);
 		String[] tokenValues = new String[3];
 			if(tokenList.size() == 2) {
 				for(int i = 0; i < tokenList.size(); i++) {
-					tokenValues[i] = tokenList.get(i).toString();
+					tokenValues[i] = tokenList.get(i).image;
 				}
 				
 			}
 			else if(tokenList.size() == 1) {
-				tokenValues[0] = tokenList.get(0).toString();
+				tokenValues[0] = tokenList.get(0).image;
 				
 			}
 		return inputDataStream;	
@@ -78,10 +87,11 @@ Stream<SensorData> selectionStream;
 
 Stream<SensorData> selection() :
 {
-Stream<SensorData> selectionStream;
+	Stream<SensorData> selectionStream;
+	Token windowToken;
 }
 {
-    <SELECT> attr() { selectionStream = selectionRules(); }
+    <SELECT> windowToken=<WINDOW> attr() { selectionStream = selectionRules(windowToken); }
 	{ return selectionStream; }
 }
 
@@ -110,7 +120,7 @@ void fromWhere() :
 {
 }
 {
-	<FROM> <STRING> (<WINDOW>)?
+	<FROM> <STRING>
 }
 void withCondition() :
 {

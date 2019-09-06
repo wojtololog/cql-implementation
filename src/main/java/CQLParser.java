@@ -17,20 +17,31 @@ public class CQLParser implements CQLParserConstants {
     public CQLParser(String query, Stream<SensorData> sensorDataStream){
         this((Reader)(new StringReader(query)));
                 this.inputDataStream = sensorDataStream;
-                this.tokenList = new ArrayList<>();
+                tokenList = new ArrayList<>();
     }
 
-        private Stream<SensorData> selectionRules() {
+        private long fromWindowTokenToLong(Token windowToken) {
+                String windowTokenValue = windowToken.image;
+                String[] splittedTable = windowTokenValue.split(" ");
+        String numberToSubstring = splittedTable[1];
+                String number = numberToSubstring.substring(0, numberToSubstring.length() - 1);
+                return Long.parseLong(number);
+        }
+
+        private Stream<SensorData> selectionRules(Token windowToken) {
+                long windowSize = fromWindowTokenToLong(windowToken);
                 String[] tokenValues = new String[3];
                         if(tokenList.size() == 2) {
                                 for(int i = 0; i < tokenList.size(); i++) {
                                         tokenValues[i] = tokenList.get(i).image;
                                 }
-                          return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]) || g.getName().equals(tokenValues[1]));
+                          return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]) || g.getName().equals(tokenValues[1]))
+                                  .filter(g -> g.getTimestamp()  <= windowSize);
                         }
                         else if(tokenList.size() == 1) {
                                 tokenValues[0] = tokenList.get(0).image;
-                                return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]));
+                          return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]))
+                                  .filter(g -> g.getTimestamp()  <= windowSize);
                         }
                 return inputDataStream;
         }
@@ -60,10 +71,12 @@ Stream<SensorData> selectionStream;
   final public Stream<SensorData> selection() throws ParseException {
     trace_call("selection");
     try {
-Stream<SensorData> selectionStream;
+        Stream<SensorData> selectionStream;
+        Token windowToken;
       jj_consume_token(SELECT);
+      windowToken = jj_consume_token(WINDOW);
       attr();
-                      selectionStream = selectionRules();
+                                           selectionStream = selectionRules(windowToken);
           {if (true) return selectionStream;}
     throw new Error("Missing return statement in function");
     } finally {
@@ -148,14 +161,6 @@ Stream<SensorData> selectionStream;
     try {
       jj_consume_token(FROM);
       jj_consume_token(STRING);
-      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-      case WINDOW:
-        jj_consume_token(WINDOW);
-        break;
-      default:
-        jj_la1[5] = jj_gen;
-        ;
-      }
     } finally {
       trace_return("fromWhere");
     }
@@ -174,7 +179,7 @@ Stream<SensorData> selectionStream;
           ;
           break;
         default:
-          jj_la1[6] = jj_gen;
+          jj_la1[5] = jj_gen;
           break label_2;
         }
         switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
@@ -185,7 +190,7 @@ Stream<SensorData> selectionStream;
           jj_consume_token(AND);
           break;
         default:
-          jj_la1[7] = jj_gen;
+          jj_la1[6] = jj_gen;
           jj_consume_token(-1);
           throw new ParseException();
         }
@@ -217,7 +222,7 @@ Stream<SensorData> selectionStream;
         jj_consume_token(GRATEREQUAL);
         break;
       default:
-        jj_la1[8] = jj_gen;
+        jj_la1[7] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -236,13 +241,13 @@ Stream<SensorData> selectionStream;
   public Token jj_nt;
   private int jj_ntk;
   private int jj_gen;
-  final private int[] jj_la1 = new int[9];
+  final private int[] jj_la1 = new int[8];
   static private int[] jj_la1_0;
   static {
       jj_la1_init_0();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0x100,0x801840,0x801840,0x10000,0x1800,0x200000,0x600,0x600,0x1e8000,};
+      jj_la1_0 = new int[] {0x100,0x801840,0x801840,0x10000,0x1800,0x600,0x600,0x1e8000,};
    }
 
   /** Constructor with InputStream. */
@@ -256,7 +261,7 @@ Stream<SensorData> selectionStream;
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 9; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 8; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -270,7 +275,7 @@ Stream<SensorData> selectionStream;
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 9; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 8; i++) jj_la1[i] = -1;
   }
 
   /** Constructor. */
@@ -280,7 +285,7 @@ Stream<SensorData> selectionStream;
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 9; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 8; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -290,7 +295,7 @@ Stream<SensorData> selectionStream;
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 9; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 8; i++) jj_la1[i] = -1;
   }
 
   /** Constructor with generated Token Manager. */
@@ -299,7 +304,7 @@ Stream<SensorData> selectionStream;
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 9; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 8; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -308,7 +313,7 @@ Stream<SensorData> selectionStream;
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 9; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 8; i++) jj_la1[i] = -1;
   }
 
   private Token jj_consume_token(int kind) throws ParseException {
@@ -366,7 +371,7 @@ Stream<SensorData> selectionStream;
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 8; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1<<j)) != 0) {
