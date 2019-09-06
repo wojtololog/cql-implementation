@@ -15,14 +15,12 @@ public class CQLImplementation {
                     .limit(100)
                      .forEach(System.out::println);*/
 
-            Supplier<Stream<SensorData>> sensorDataStreamSupplier = () -> Stream.generate(sensorDataGenerator::generate).limit(100);
-            
+            Stream<SensorData> sensorDataStream = Stream.generate(sensorDataGenerator::generate);
+
             String query = "select sensor1, sensor2 from sensorDataStream";
-            cqlParser = new CQLParser(query, sensorDataStreamSupplier);
-            List<Stream<SensorData>> result = cqlParser.parse();
-            for(Stream<SensorData> sensorDataStream : result) {
-                sensorDataStream.limit(10).forEach(System.out::println);
-            }
+            cqlParser = new CQLParser(query, sensorDataStream);
+            Stream<SensorData> result = cqlParser.parse();
+            result.limit(25).forEach(System.out::println);
 
         } catch (Exception e) {
             e.printStackTrace();

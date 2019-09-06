@@ -9,20 +9,37 @@ import java.util.List;
 import java.util.function.Supplier;
 
 public class CQLParser implements CQLParserConstants {
-        private Supplier<Stream<SensorData>> inputDataStream;
+        private Stream<SensorData> inputDataStream;
         private Stream<SensorData> outputStream;
-        private List<Stream<SensorData>> streamSelectionList;
 
-    public CQLParser(String query, Supplier<Stream<SensorData>> sensorDataStreamSupplier){
+        private List<Token> tokenList;
+
+    public CQLParser(String query, Stream<SensorData> sensorDataStream){
         this((Reader)(new StringReader(query)));
-        this.inputDataStream = sensorDataStreamSupplier;
-        streamSelectionList = new ArrayList<>();
+                this.inputDataStream = sensorDataStream;
+                this.tokenList = new ArrayList<>();
     }
 
-  final public List<Stream<SensorData>> parse() throws ParseException {
+        private Stream<SensorData> selectionRules() {
+                String[] tokenValues = new String[3];
+                        if(tokenList.size() == 2) {
+                                for(int i = 0; i < tokenList.size(); i++) {
+                                        tokenValues[i] = tokenList.get(i).image;
+                                }
+                          return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]) || g.getName().equals(tokenValues[1]));
+                        }
+                        else if(tokenList.size() == 1) {
+                                tokenValues[0] = tokenList.get(0).image;
+                                return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]));
+                        }
+                return inputDataStream;
+        }
+
+  final public Stream<SensorData> parse() throws ParseException {
     trace_call("parse");
     try {
-      selection();
+Stream<SensorData> selectionStream;
+      selectionStream = selection();
       fromWhere();
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case WHERE:
@@ -33,18 +50,22 @@ public class CQLParser implements CQLParserConstants {
         ;
       }
       jj_consume_token(0);
-          {if (true) return streamSelectionList;}
+          {if (true) return selectionStream;}
     throw new Error("Missing return statement in function");
     } finally {
       trace_return("parse");
     }
   }
 
-  final public void selection() throws ParseException {
+  final public Stream<SensorData> selection() throws ParseException {
     trace_call("selection");
     try {
+Stream<SensorData> selectionStream;
       jj_consume_token(SELECT);
       attr();
+                      selectionStream = selectionRules();
+          {if (true) return selectionStream;}
+    throw new Error("Missing return statement in function");
     } finally {
       trace_return("selection");
     }
@@ -53,8 +74,7 @@ public class CQLParser implements CQLParserConstants {
   final public void attr() throws ParseException {
     trace_call("attr");
     try {
-        Token comparand;
-        String tokenValue;
+        Token token;
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case STAR:
       case AVG:
@@ -69,10 +89,8 @@ public class CQLParser implements CQLParserConstants {
           jj_consume_token(STAR);
           break;
         case STRING:
-          comparand = jj_consume_token(STRING);
-                        tokenValue = comparand.toString();
-                        outputStream = inputDataStream.get().filter(g -> g.getName().equals(tokenValue));
-                        streamSelectionList.add(outputStream);
+          token = jj_consume_token(STRING);
+                        tokenList.add(token);
           break;
         default:
           jj_la1[1] = jj_gen;
