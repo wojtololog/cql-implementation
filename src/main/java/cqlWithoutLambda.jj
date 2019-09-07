@@ -7,17 +7,20 @@ import java.util.stream.Stream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class CQLParser {
 	private Stream<SensorData> inputDataStream;
-	private List<Token> tokenList;
-	private List<Token> firstConditionTokenList;
+	private List<Token> selectionTokenList;
+	private List<Token> aggregationselectionTokenList;
+	private List<Token> firstConditionselectionTokenList;
 	private	boolean isTokenStarOnList;
 	
     public CQLParser(String query, Stream<SensorData> sensorDataStream){
         this((Reader)(new StringReader(query)));
 		this.inputDataStream = sensorDataStream;
-		
+	
     }
 	
 	private long fromWindowTokenToLong(Token windowToken) {
@@ -31,6 +34,12 @@ public class CQLParser {
 	private Stream<SensorData> selectionRules(Token windowToken) {
 		long windowSize = fromWindowTokenToLong(windowToken);
 		String[] tokenValues = new String[3];
+		List<Token> tokenList;
+                if(selectionTokenList.isEmpty()) {
+                    tokenList = aggregationselectionTokenList;
+                } else {
+                    tokenList = selectionTokenList;
+                }
 		if(!isTokenStarOnList) {
 			if(tokenList.size() == 2) {
 				for(int i = 0; i < tokenList.size(); i++) {
@@ -48,9 +57,9 @@ public class CQLParser {
 		return null;
 	}
 	
-	private Stream<SensorData> conditionRules(List<Token> firstConditionTokenList, Stream<SensorData> selectionStream) {
-		String filteringCondition = firstConditionTokenList.get(0).image;
-		String numberString = firstConditionTokenList.get(1).image;
+	private Stream<SensorData> conditionRules(List<Token> firstConditionselectionTokenList, Stream<SensorData> selectionStream) {
+		String filteringCondition = firstConditionselectionTokenList.get(0).image;
+		String numberString = firstConditionselectionTokenList.get(1).image;
         double filteringNumber = Double.valueOf(numberString);
 		
 		switch(filteringCondition) {
@@ -64,7 +73,10 @@ public class CQLParser {
 				
 		default:
 			return null;
-		}
+		}	
+	}
+	
+	private Stream<SensorData> aggregateStream(Stream<SensorData> streamToAggregate) {
 		
 	}
 }
@@ -102,16 +114,27 @@ TOKEN: /*RESERVED TOKENS FOR UQL */
 
 Stream<SensorData> parse() :
 {
-	Stream<SensorData> selectionStream;
-	Stream<SensorData> outputStream = null;
+	Stream<SensorData> selectionStream = null;
+	Stream<SensorData> fromWhereStream = null;
+	Stream<SensorData> aggregationStream = null;
 }
 {            
-	selectionStream = selection() fromWhere() (outputStream = withCondition(selectionStream))? <EOF>
-	{ 
-		if(outputStream == null) {
-			return selectionStream;
+	selectionStream = selection() fromWhere() (fromWhereStream = withCondition(selectionStream))? <EOF>
+	{
+		if(aggregationselectionTokenList.isEmpty()) {
+			if(fromWhereStream == null) {
+				return selectionStream;
+			} else {
+				return fromWhereStream; 
+			}
 		} else {
-			return outputStream; 
+			if(fromWhereStream == null) {
+				aggregationStream = aggregateStream(selectionStream);
+				return aggregationStream;
+			} else {
+				aggregationStream = aggregateStream(fromWhereStream);
+				return aggregationStream; 
+			}
 		}
 		return null;
 	}
@@ -133,7 +156,7 @@ void attr() :
 }
 {
     (
-	aggregation() | token=<STAR> { isTokenStarOnList = true; } | token=<STRING> { tokenList.add(token); }	
+	aggregation() | token=<STAR> { isTokenStarOnList = true; } | token=<STRING> { selectionTokenList.add(token); }		
 	)?
     (<COMMA> attr())*
 }
@@ -141,9 +164,10 @@ void attr() :
 
 void aggregation() :
 {
+	Token token;
 }
 {
-	(<AVG> | <SUM>) <LPAREN> <STRING> <RPAREN>
+	<AVG> <LPAREN> token=<STRING> { aggregationselectionTokenList.add(token); } <RPAREN>
 }
 void fromWhere() :
 {
@@ -156,9 +180,9 @@ Stream<SensorData> withCondition(Stream<SensorData> selectionStream) :
 	Stream<SensorData> conditionStream;
 }
 {
-	<WHERE> {firstConditionTokenList = condition();}
+	<WHERE> {firstConditionselectionTokenList = condition();}
 	{ 
-	  conditionStream = conditionRules(firstConditionTokenList, selectionStream);
+	  conditionStream = conditionRules(firstConditionselectionTokenList, selectionStream);
 	  return conditionStream;
 	}
 }

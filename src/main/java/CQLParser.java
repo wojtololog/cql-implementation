@@ -3,28 +3,29 @@ import model.SensorData;
 
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.*;
 import java.util.stream.Stream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public class CQLParser implements CQLParserConstants {
         private Stream<SensorData> inputDataStream;
-        private List<Token> tokenList;
-        private List<Token> firstConditionTokenList;
+        private List<Token> selectionTokenList;
+        private List<Token> aggregationselectionTokenList;
+        private List<Token> firstConditionselectionTokenList;
         private boolean isTokenStarOnList;
 
     public CQLParser(String query, Stream<SensorData> sensorDataStream){
         this((Reader)(new StringReader(query)));
                 this.inputDataStream = sensorDataStream;
-                tokenList = new ArrayList<>();
-                firstConditionTokenList = new ArrayList<>();
+                selectionTokenList = new ArrayList<>();
+                firstConditionselectionTokenList = new ArrayList<>();
+                aggregationselectionTokenList = new ArrayList<>();
     }
 
         private long fromWindowTokenToLong(Token windowToken) {
                 String windowTokenValue = windowToken.image;
                 String[] splittedTable = windowTokenValue.split(" ");
-                String numberToSubstring = splittedTable[1];
+        String numberToSubstring = splittedTable[1];
                 String number = numberToSubstring.substring(0, numberToSubstring.length() - 1);
                 return Long.parseLong(number);
         }
@@ -32,6 +33,12 @@ public class CQLParser implements CQLParserConstants {
         private Stream<SensorData> selectionRules(Token windowToken) {
                 long windowSize = fromWindowTokenToLong(windowToken);
                 String[] tokenValues = new String[3];
+                List<Token> tokenList;
+                if(selectionTokenList.isEmpty()) {
+                    tokenList = aggregationselectionTokenList;
+                } else {
+                    tokenList = selectionTokenList;
+                }
                 if(!isTokenStarOnList) {
                         if(tokenList.size() == 2) {
                                 for(int i = 0; i < tokenList.size(); i++) {
@@ -51,10 +58,10 @@ public class CQLParser implements CQLParserConstants {
                 return null;
         }
 
-        private Stream<SensorData> conditionRules(List<Token> firstConditionTokenList, Stream<SensorData> selectionStream) {
-                String filteringCondition = firstConditionTokenList.get(0).image;
-                String numberString = firstConditionTokenList.get(1).image;
-        double filteringNumber = Double.valueOf(numberString);
+        private Stream<SensorData> conditionRules(List<Token> firstConditionselectionTokenList, Stream<SensorData> selectionStream) {
+                String filteringCondition = firstConditionselectionTokenList.get(0).image;
+                String numberString = firstConditionselectionTokenList.get(1).image;
+                double filteringNumber = Double.valueOf(numberString);
 
                 switch(filteringCondition) {
                 case ">":
@@ -68,29 +75,57 @@ public class CQLParser implements CQLParserConstants {
                 default:
                         return null;
                 }
+        }
 
+        private Stream<SensorData> aggregateStream(Stream<SensorData> streamToAggregate) {
+            List<SensorData> sensorsData = new ArrayList<>();
+
+            Map<String, Double> averageTemperatureBySensorName = streamToAggregate
+                    .collect(
+                            Collectors.groupingBy(
+                                    SensorData::getName,
+                                    TreeMap::new,
+                                    Collectors.averagingDouble(SensorData::getTemperature)));
+
+            Set<Map.Entry<String,Double>> entrySet = averageTemperatureBySensorName.entrySet();
+            for(Map.Entry<String, Double> entry : entrySet) {
+                SensorData.setClassIntanceNumber(0);
+                sensorsData.add(new SensorData(entry.getKey(), entry.getValue()));
+            }
+            return sensorsData.stream();
         }
 
   final public Stream<SensorData> parse() throws ParseException {
     trace_call("parse");
     try {
-        Stream<SensorData> selectionStream;
-        Stream<SensorData> outputStream = null;
+        Stream<SensorData> selectionStream = null;
+        Stream<SensorData> fromWhereStream = null;
+        Stream<SensorData> aggregationStream = null;
       selectionStream = selection();
       fromWhere();
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case WHERE:
-        outputStream = withCondition(selectionStream);
+        fromWhereStream = withCondition(selectionStream);
         break;
       default:
         jj_la1[0] = jj_gen;
         ;
       }
       jj_consume_token(0);
-                if(outputStream == null) {
-                        {if (true) return selectionStream;}
+                if(aggregationselectionTokenList.isEmpty()) {
+                        if(fromWhereStream == null) {
+                                {if (true) return selectionStream;}
+                        } else {
+                                {if (true) return fromWhereStream;}
+                        }
                 } else {
-                        {if (true) return outputStream;}
+                        if(fromWhereStream == null) {
+                                aggregationStream = aggregateStream(selectionStream);
+                                {if (true) return aggregationStream;}
+                        } else {
+                                aggregationStream = aggregateStream(fromWhereStream);
+                                {if (true) return aggregationStream;}
+                        }
                 }
                 {if (true) return null;}
     throw new Error("Missing return statement in function");
@@ -122,11 +157,9 @@ public class CQLParser implements CQLParserConstants {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case STAR:
       case AVG:
-      case SUM:
       case STRING:
         switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
         case AVG:
-        case SUM:
           aggregation();
           break;
         case STAR:
@@ -135,7 +168,7 @@ public class CQLParser implements CQLParserConstants {
           break;
         case STRING:
           token = jj_consume_token(STRING);
-                                                                                      tokenList.add(token);
+                                                                                      selectionTokenList.add(token);
           break;
         default:
           jj_la1[1] = jj_gen;
@@ -168,20 +201,11 @@ public class CQLParser implements CQLParserConstants {
   final public void aggregation() throws ParseException {
     trace_call("aggregation");
     try {
-      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-      case AVG:
-        jj_consume_token(AVG);
-        break;
-      case SUM:
-        jj_consume_token(SUM);
-        break;
-      default:
-        jj_la1[4] = jj_gen;
-        jj_consume_token(-1);
-        throw new ParseException();
-      }
+        Token token;
+      jj_consume_token(AVG);
       jj_consume_token(LPAREN);
-      jj_consume_token(STRING);
+      token = jj_consume_token(STRING);
+                                        aggregationselectionTokenList.add(token);
       jj_consume_token(RPAREN);
     } finally {
       trace_return("aggregation");
@@ -203,8 +227,8 @@ public class CQLParser implements CQLParserConstants {
     try {
         Stream<SensorData> conditionStream;
       jj_consume_token(WHERE);
-                 firstConditionTokenList = condition();
-          conditionStream = conditionRules(firstConditionTokenList, selectionStream);
+                 firstConditionselectionTokenList = condition();
+          conditionStream = conditionRules(firstConditionselectionTokenList, selectionStream);
           {if (true) return conditionStream;}
     throw new Error("Missing return statement in function");
     } finally {
@@ -236,7 +260,7 @@ public class CQLParser implements CQLParserConstants {
                                                                                                                                                                                         conditionTokens.add(token);
         break;
       default:
-        jj_la1[5] = jj_gen;
+        jj_la1[4] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -258,13 +282,13 @@ public class CQLParser implements CQLParserConstants {
   public Token jj_nt;
   private int jj_ntk;
   private int jj_gen;
-  final private int[] jj_la1 = new int[6];
+  final private int[] jj_la1 = new int[5];
   static private int[] jj_la1_0;
   static {
       jj_la1_init_0();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0x100,0x801840,0x801840,0x10000,0x1800,0x1e0000,};
+      jj_la1_0 = new int[] {0x100,0x800840,0x800840,0x10000,0x1e0000,};
    }
 
   /** Constructor with InputStream. */
@@ -278,7 +302,7 @@ public class CQLParser implements CQLParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 5; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -292,7 +316,7 @@ public class CQLParser implements CQLParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 5; i++) jj_la1[i] = -1;
   }
 
   /** Constructor. */
@@ -302,7 +326,7 @@ public class CQLParser implements CQLParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 5; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -312,7 +336,7 @@ public class CQLParser implements CQLParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 5; i++) jj_la1[i] = -1;
   }
 
   /** Constructor with generated Token Manager. */
@@ -321,7 +345,7 @@ public class CQLParser implements CQLParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 5; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -330,7 +354,7 @@ public class CQLParser implements CQLParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 5; i++) jj_la1[i] = -1;
   }
 
   private Token jj_consume_token(int kind) throws ParseException {
@@ -388,7 +412,7 @@ public class CQLParser implements CQLParserConstants {
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 5; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1<<j)) != 0) {

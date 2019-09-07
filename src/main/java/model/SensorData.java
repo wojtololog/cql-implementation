@@ -24,9 +24,13 @@ public class SensorData {
         return timestamp;
     }
 
+    public static void setClassIntanceNumber(long classIntanceNumber) {
+        SensorData.classIntanceNumber = classIntanceNumber;
+    }
+
     @Override
     public String toString() {
-        return "timestamp: " + timestamp + " " + name + ", temperature: " + temperature;
+        return "timestamp: " + timestamp + " name: " + name + " temperature: " + temperature;
     }
 
     public boolean filterWithName(String name) {
