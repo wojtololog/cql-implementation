@@ -15,12 +15,12 @@ public class CQLParser implements CQLParserConstants {
         private boolean isTokenStarOnList;
 
     public CQLParser(String query, Stream<SensorData> sensorDataStream){
-        this((Reader)(new StringReader(query)));
+                this((Reader)(new StringReader(query)));
                 this.inputDataStream = sensorDataStream;
                 selectionTokenList = new ArrayList<>();
                 firstConditionselectionTokenList = new ArrayList<>();
                 aggregationselectionTokenList = new ArrayList<>();
-    }
+        }
 
         private long fromWindowTokenToLong(Token windowToken) {
                 String windowTokenValue = windowToken.image;
@@ -40,6 +40,14 @@ public class CQLParser implements CQLParserConstants {
                     tokenList = selectionTokenList;
                 }
                 if(!isTokenStarOnList) {
+                        if(tokenList.size() == 3) {
+                            for(int i = 0; i < tokenList.size(); i++) {
+                                tokenValues[i] = tokenList.get(i).image;
+                            }
+                            return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]) || g.getName().equals(tokenValues[1]) || g.getName().equals(tokenValues[2]))
+                                    .filter(g -> g.getTimestamp() <= windowSize);
+
+                        }
                         if(tokenList.size() == 2) {
                                 for(int i = 0; i < tokenList.size(); i++) {
                                         tokenValues[i] = tokenList.get(i).image;
@@ -61,7 +69,7 @@ public class CQLParser implements CQLParserConstants {
         private Stream<SensorData> conditionRules(List<Token> firstConditionselectionTokenList, Stream<SensorData> selectionStream) {
                 String filteringCondition = firstConditionselectionTokenList.get(0).image;
                 String numberString = firstConditionselectionTokenList.get(1).image;
-                double filteringNumber = Double.valueOf(numberString);
+        double filteringNumber = Double.valueOf(numberString);
 
                 switch(filteringCondition) {
                 case ">":
@@ -72,7 +80,7 @@ public class CQLParser implements CQLParserConstants {
                     return selectionStream.filter(g -> g.getTemperature() <= filteringNumber);
                 case ">=":
                     return selectionStream.filter(g -> g.getTemperature() >= filteringNumber);
-                default:
+                    default:
                         return null;
                 }
         }

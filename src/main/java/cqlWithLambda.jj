@@ -32,30 +32,38 @@ public class CQLParser {
 	
 	private Stream<SensorData> selectionRules(Token windowToken) {
 		long windowSize = fromWindowTokenToLong(windowToken);
-		String[] tokenValues = new String[3];
-		 List<Token> tokenList;
+                String[] tokenValues = new String[3];
+                List<Token> tokenList;
                 if(selectionTokenList.isEmpty()) {
                     tokenList = aggregationselectionTokenList;
                 } else {
                     tokenList = selectionTokenList;
                 }
-		if(!isTokenStarOnList) {
-			if(tokenList.size() == 2) {
-				for(int i = 0; i < tokenList.size(); i++) {
-					tokenValues[i] = tokenList.get(i).image;
-				}
-				return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]) || g.getName().equals(tokenValues[1]))
-									.filter(g -> g.getTimestamp() <= windowSize);
-			}
-			else if(tokenList.size() == 1) {
-				tokenValues[0] = tokenList.get(0).image;
-				return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]))
-									.filter(g -> g.getTimestamp() <= windowSize);
-			}
-		} else {	
-			return inputDataStream.filter(g -> g.getTimestamp() <= windowSize);
-		}
-		return null;
+                if(!isTokenStarOnList) {
+                        if(tokenList.size() == 3) {
+                            for(int i = 0; i < tokenList.size(); i++) {
+                                tokenValues[i] = tokenList.get(i).image;
+                            }
+                            return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]) || g.getName().equals(tokenValues[1]) || g.getName().equals(tokenValues[2]))
+                                    .filter(g -> g.getTimestamp() <= windowSize);
+
+                        }
+                        if(tokenList.size() == 2) {
+                                for(int i = 0; i < tokenList.size(); i++) {
+                                        tokenValues[i] = tokenList.get(i).image;
+                                }
+                            return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]) || g.getName().equals(tokenValues[1]))
+                                    .filter(g -> g.getTimestamp() <= windowSize);
+                        }
+                        else if(tokenList.size() == 1) {
+                                tokenValues[0] = tokenList.get(0).image;
+                            return inputDataStream.filter(g -> g.getName().equals(tokenValues[0]))
+                                    .filter(g -> g.getTimestamp() <= windowSize);
+                        }
+                } else {
+                    return inputDataStream.filter(g -> g.getTimestamp() <= windowSize);
+                }
+                return null;
 	}
 	
 	private Stream<SensorData> conditionRules(List<Token> firstConditionselectionTokenList, Stream<SensorData> selectionStream) {

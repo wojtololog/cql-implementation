@@ -3,11 +3,8 @@ import model.SensorData;
 
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.*;
 import java.util.stream.Stream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Supplier;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 public class CQLParser {
@@ -20,7 +17,7 @@ public class CQLParser {
     public CQLParser(String query, Stream<SensorData> sensorDataStream){
         this((Reader)(new StringReader(query)));
 		this.inputDataStream = sensorDataStream;
-	
+		
     }
 	
 	private long fromWindowTokenToLong(Token windowToken) {
@@ -33,28 +30,35 @@ public class CQLParser {
 	
 	private Stream<SensorData> selectionRules(Token windowToken) {
 		long windowSize = fromWindowTokenToLong(windowToken);
-		String[] tokenValues = new String[3];
-		List<Token> tokenList;
+                String[] tokenValues = new String[3];
+                List<Token> tokenList;
                 if(selectionTokenList.isEmpty()) {
                     tokenList = aggregationselectionTokenList;
                 } else {
                     tokenList = selectionTokenList;
                 }
-		if(!isTokenStarOnList) {
-			if(tokenList.size() == 2) {
-				for(int i = 0; i < tokenList.size(); i++) {
-					tokenValues[i] = tokenList.get(i).image;
-				}
-				
-			}
-			else if(tokenList.size() == 1) {
-				tokenValues[0] = tokenList.get(0).image;
-				
-			}
-		} else {	
-			
-		}
-		return null;
+                if(!isTokenStarOnList) {
+                        if(tokenList.size() == 3) {
+                            for(int i = 0; i < tokenList.size(); i++) {
+                                tokenValues[i] = tokenList.get(i).image;
+                            }
+                             
+
+                        }
+                        if(tokenList.size() == 2) {
+                                for(int i = 0; i < tokenList.size(); i++) {
+                                        tokenValues[i] = tokenList.get(i).image;
+                                }
+                             
+                        }
+                        else if(tokenList.size() == 1) {
+                                tokenValues[0] = tokenList.get(0).image;
+                             
+                        }
+                } else {
+                     
+                }
+                return null;
 	}
 	
 	private Stream<SensorData> conditionRules(List<Token> firstConditionselectionTokenList, Stream<SensorData> selectionStream) {
@@ -70,7 +74,7 @@ public class CQLParser {
 		case "<=":	
 			
 		case ">=":	
-				
+			
 		default:
 			return null;
 		}	
